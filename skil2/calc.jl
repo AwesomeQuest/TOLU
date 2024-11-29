@@ -119,9 +119,9 @@ let
 	mu(ξ) = μ12(T(ξ), β1...)
 	#mu(ξ) = μ12(T(ξ), β2...)
 	#mu(ξ) = μ3(T(ξ), β3...)
-	K = V0 / simpson(ξ -> 1/mu(ξ), 0,L,100)
-	V(y) =  K * simpson(ξ-> 1/mu(ξ), 0,y,100)
-	lines(0..L, V)
+	K = V0 / simpson(ξ -> 1/mu(ξ), 0,L,2)
+	V(y) =  K * simpson(ξ-> 1/mu(ξ), 0,y,2)
+	lines(0..L, V, axis=(xlabel="Vegalengd [m]",ylabel="Hraði [m/s]"))
 end
 
 # ╔═╡ 8bf6f079-2528-4ccd-8021-cb0f9f204f2e
@@ -137,33 +137,32 @@ end
 @benchmark V.(0:0.005:0.1, 1e-10)
 
 # ╔═╡ b8a4f8de-c0f5-4a2c-a3ed-23dbf87bd5e8
-(rng->scatter(10.0 .^-rng,-V.(big"1"/2*0.1,10.0.^-rng) .+ V.(big"1"/2*0.1,10.0^-12), axis=(xscale=log10,xticks=LinearTicks(8) |> LogTicks)))((3:13))
+(rng->scatter(10.0 .^-rng,-V.(big"1"/2*0.1,10.0.^-rng) .+ V.(big"1"/2*0.1,10.0^-12), axis=(xscale=log10,xticks=LinearTicks(8) |> LogTicks)))((4:13))
 
 # ╔═╡ 00d40b4a-6281-468a-aaa5-d94d82e39306
 10.0 .^-(1:8)
 
 # ╔═╡ ebff66e5-b61b-4e6f-b0f6-cb0ad1207638
 let
-	rng = 1:12
-	 V.(big"1"/2*0.1,10.0.^-rng) ./ V.(big"1"/2*0.1,10.0.^(-rng .+1)) .- 1 .|> abs .|> log2 |> diff
+	rng = 1:13
+	 V.(big"1"/2*0.1,10.0.^-rng) ./ V.(big"1"/2*0.1,10.0.^(-rng .+1)) .- 1 .|> abs .|> (x->log(2,x)) |> diff
 end
 
 # ╔═╡ 80e60c0e-570e-469e-829d-496673df32b8
 let
-	tend = 20
+	tend = 10
 	fps = 30
 	xs = range(0,L, 100) |> collect
 	vs = V.(xs)
 	
 	zs = zeros(size(xs))
-
 	t = Observable(0.0)
 
-	lines(xs,10vs, axis=(xlabel="Vegalengd [m]",ylabel="Vegalengd [m] / Hraði [dam]"))
+	lines(xs,10vs, axis=(xlabel="Vegalengd x-ás eða y-ás [m]",ylabel="Vegalengd [m] / Hraði [dm/s]"))
 	
 	scatter!(CairoMakie.@lift(zs + vs*$t),xs)
 
-	record(current_figure(), "video.mp4", t[]:1/fps:tend; fps=fps) do i
+	record(current_figure(), "video.mp4", t[]:1/fps:tend; framerate=fps) do i
 		t[] = i
 	end |> x-> md"$(LocalResource(x, :loop=>true))"
 end
@@ -179,11 +178,11 @@ let
 
 	t = Observable(0.0)
 
-	lines(xs,10vs, axis=(xlabel="Vegalengd [m]",ylabel="Vegalengd [m] / Hraði [dm/s]"))
+	lines(xs,10vs, axis=(xlabel="Vegalengd x-ás eða y-ás [m]",ylabel="Vegalengd [m] / Hraði [dm/s]"))
 	
 	scatter!(CairoMakie.@lift(zs + vs*$t),xs)
 
-	record(current_figure(), "video.mp4", t[]:1/fps:tend; fps=fps) do i
+	record(current_figure(), "video.mp4", t[]:1/fps:tend; framerate=fps) do i
 		t[] = i
 	end |> x-> md"$(LocalResource(x, :loop=>true))"
 end
@@ -199,7 +198,7 @@ let
 
 	t = Observable(0.0)
 
-	lines(xs,10vs, axis=(xlabel="Vegalengd [m]",ylabel="Vegalengd [m] / Hraði [dm/s]"))
+	lines(xs,10vs, axis=(xlabel="Vegalengd x-ás eða y-ás [m]",ylabel="Vegalengd [m] / Hraði [dm/s]"))
 	
 	scatter!(zs + vs*5,xs)
 
@@ -217,7 +216,7 @@ let
 
 	t = Observable(0.0)
 
-	lines(xs,10vs, axis=(xlabel="Vegalengd [m]",ylabel="Vegalengd [m] / Hraði [dm/s]"))
+	lines(xs,10vs, axis=(xlabel="Vegalengd x-ás eða y-ás [m]",ylabel="Vegalengd [m] / Hraði [dm/s]"))
 	
 	scatter!(zs + vs*5,xs)
 
