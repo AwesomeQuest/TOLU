@@ -103,8 +103,66 @@ function adapquad(f,a,b,tol)
 	abs(I0-I1) < 10tol ? (I1, 1) : (adapquad(f,a,(b+a)/2,tol/2) .+ adapquad(f,(b+a)/2,b,tol/2))
 end
 
-# ╔═╡ 7a32f34c-d8d2-412d-8c9a-2b7be6bc0807
-adapquad(x->1/x, 1,2,0.5e-10)
+# ╔═╡ 55c344ce-968c-4b98-88ec-2d9d3b3d8974
+function adapquadtrack!(pts,f,a,b,tol)
+	push!(pts,a,b,(a+b)/2)
+	I0 = simpson(f,a,b,1)
+	I1 = simpson(f,a,b,2)
+	abs(I0-I1) < 10tol ? I1 : (adapquadtrack!(pts,f,a,(b+a)/2,tol/2) .+ adapquadtrack!(pts,f,(b+a)/2,b,tol/2))
+end
+
+# ╔═╡ 038dd56c-aa63-4164-a639-b4a7a02c3daa
+Vtrack!(pts,y,n=0.5e-10; T0 = T0, T1 = T1) = begin
+	
+	T(x) = T0 + x*(T1-T0)/L
+	mu(ξ) = μ12(T(ξ), β2...)
+	K = V0 / adapquadtrack!(pts.Kp,ξ -> 1/mu(ξ), 0,L,n)[1]
+	K * adapquadtrack!(pts.Up,ξ-> 1/mu(ξ), 0,y,n)[1]
+end
+
+# ╔═╡ 32f17922-5226-4747-9aba-88f3e54a353a
+pts = let
+	pts = (Kp=Float64[], Up=Float64[])
+	Vtrack!(pts,L/2)
+	(unique(pts.Kp), unique(pts.Up))
+end
+
+# ╔═╡ 407b9120-c9f5-4f30-8ebc-029304120ef9
+length(pts[1])-1
+
+# ╔═╡ a5a288cd-f234-4ea2-b0ef-0f973f1dc9d4
+length(pts[2])-1
+
+# ╔═╡ 1601d4a8-72f6-411b-85bf-b5884c9f5d39
+length(pts[1]) + length(pts[2]) - 2
+
+# ╔═╡ da6f3b89-d8c3-4fb0-9862-d37d06acf51c
+let
+	V0 = 0.01
+	T0 = 20 + 273.15
+	T1 = 80 + 273.15
+	L  = 0.1
+	
+	pts = let
+		pts = (Kp=Float64[], Up=Float64[])
+		Vtrack!(pts,L/2)
+		vcat(pts.Kp, pts.Up) |> unique
+	end
+
+	
+
+	ind = Observable(1)
+
+	T(x) = T0 + x*(T1-T0)/L
+	#mu(ξ) = μ12(T(ξ), β1...)
+	mu(ξ) = μ12(T(ξ), β2...)
+	#mu(ξ) = μ3(T(ξ), β3...)
+	K = V0 / simpson(ξ -> 1/mu(ξ), 0,L,2)
+	V(y) =  K * simpson(ξ-> 1/mu(ξ), 0,y,2)
+	lines(0..L, z->1/mu(z), axis=(xlabel="Vegalengd [m]",ylabel="1/μ"))
+	scatter!(pts ,z->1/mu(z); markersize = 10, marker='|', color=:red)
+	current_figure()
+end
 
 # ╔═╡ a1623077-fe6b-4d4b-8575-42d1eba9c24b
 let
@@ -112,16 +170,29 @@ let
 	T0 = 20 + 273.15
 	T1 = 80 + 273.15
 	L  = 0.1
+	
+	pts = let
+		pts = (Kp=Float64[], Up=Float64[])
+		Vtrack!(pts,L/2)
+		vcat(pts.Kp, pts.Up) |> unique
+	end
 
 	
 
+	ind = Observable(1)
+
 	T(x) = T0 + x*(T1-T0)/L
-	mu(ξ) = μ12(T(ξ), β1...)
-	#mu(ξ) = μ12(T(ξ), β2...)
+	#mu(ξ) = μ12(T(ξ), β1...)
+	mu(ξ) = μ12(T(ξ), β2...)
 	#mu(ξ) = μ3(T(ξ), β3...)
 	K = V0 / simpson(ξ -> 1/mu(ξ), 0,L,2)
 	V(y) =  K * simpson(ξ-> 1/mu(ξ), 0,y,2)
-	lines(0..L, V, axis=(xlabel="Vegalengd [m]",ylabel="Hraði [m/s]"))
+	lines(0..L, z->1/mu(z), axis=(xlabel="Vegalengd [m]",ylabel="1/μ"))
+	scatter!(CairoMakie.@lift(pts[1:$ind]) ,z->1/mu(z); markersize = 10, marker='|', color=:red)
+
+	record(current_figure(), "video.mp4", 2:length(pts); framerate=10) do i
+		ind[] = i
+	end |> x-> md"$(LocalResource(x, :loop=>true))"
 end
 
 # ╔═╡ 8bf6f079-2528-4ccd-8021-cb0f9f204f2e
@@ -134,7 +205,7 @@ V(y,n=0.5e-10; T0 = T0, T1 = T1) = begin
 end
 
 # ╔═╡ a2552e99-8c43-4050-8408-58a879b4c1e6
-@benchmark V.(0:0.005:0.1, 1e-10)
+V(L/2, 0.5e-10) 
 
 # ╔═╡ b8a4f8de-c0f5-4a2c-a3ed-23dbf87bd5e8
 (rng->scatter(10.0 .^-rng,-V.(big"1"/2*0.1,10.0.^-rng) .+ V.(big"1"/2*0.1,10.0^-12), axis=(xscale=log10,xticks=LinearTicks(8) |> LogTicks)))((4:13))
@@ -158,7 +229,7 @@ let
 	zs = zeros(size(xs))
 	t = Observable(0.0)
 
-	lines(xs,10vs, axis=(xlabel="Vegalengd x-ás eða y-ás [m]",ylabel="Vegalengd [m] / Hraði [dm/s]"))
+	lines(xs,10vs, axis=(xlabel="Vegalengd x-ás eða y-ás [m]",ylabel="Vegalengd y-ás [m] / Hraði [dm/s]"))
 	
 	scatter!(CairoMakie.@lift(zs + vs*$t),xs)
 
@@ -178,7 +249,7 @@ let
 
 	t = Observable(0.0)
 
-	lines(xs,10vs, axis=(xlabel="Vegalengd x-ás eða y-ás [m]",ylabel="Vegalengd [m] / Hraði [dm/s]"))
+	lines(xs,10vs, axis=(xlabel="Vegalengd x-ás eða y-ás [m]",ylabel="Vegalengd y-ás [m] / Hraði [dm/s]"))
 	
 	scatter!(CairoMakie.@lift(zs + vs*$t),xs)
 
@@ -2018,7 +2089,13 @@ version = "3.6.0+0"
 # ╠═6c820d56-d9ca-4921-a366-64e950a51d2b
 # ╠═0bc22b73-332c-498c-9f6b-05b2c77f2735
 # ╠═c645bdf2-e171-4543-97a9-09fbf5007e24
-# ╠═7a32f34c-d8d2-412d-8c9a-2b7be6bc0807
+# ╠═55c344ce-968c-4b98-88ec-2d9d3b3d8974
+# ╠═038dd56c-aa63-4164-a639-b4a7a02c3daa
+# ╠═32f17922-5226-4747-9aba-88f3e54a353a
+# ╠═407b9120-c9f5-4f30-8ebc-029304120ef9
+# ╠═a5a288cd-f234-4ea2-b0ef-0f973f1dc9d4
+# ╠═1601d4a8-72f6-411b-85bf-b5884c9f5d39
+# ╠═da6f3b89-d8c3-4fb0-9862-d37d06acf51c
 # ╠═a1623077-fe6b-4d4b-8575-42d1eba9c24b
 # ╠═8bf6f079-2528-4ccd-8021-cb0f9f204f2e
 # ╠═a2552e99-8c43-4050-8408-58a879b4c1e6
